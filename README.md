@@ -11,3 +11,12 @@ Requirements:
 - [ ] TDD, BDD
 
 ## How to build and run
+
+Requirements:
+- Docker (with docker compose v2)
+
+To run execute:
+
+```shell
+docker compose up -d
+```
