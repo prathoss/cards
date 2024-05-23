@@ -36,3 +36,18 @@ func (s *Server) Run() {
 	}
 }
 
+func parseID(r *http.Request) (uuid.UUID, []pkg.InvalidParam) {
+	return uuid.Nil, nil
+}
+
+func parseShuffled(r *http.Request) (bool, []pkg.InvalidParam) {
+	return nil, nil
+}
+
+func parseCards(r *http.Request) ([]string, []pkg.InvalidParam) {
+	return nil, nil
+}
+
+func parseCount(r *http.Request) (int, []pkg.InvalidParam) {
+	return 0, nil
+}
