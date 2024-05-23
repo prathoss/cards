@@ -1,0 +1,14 @@
+### Create deck
+POST {{uri}}/api/v1/deck
+
+### Open deck
+< {%
+    request.variables.set("id", "")
+%}
+POST {{uri}}/api/v1/deck/{{id}}/open
+
+### Draw from deck
+< {%
+    request.variables.set("id", "")
+%}
+POST {{uri}}/api/v1/deck/{{id}}/draw
