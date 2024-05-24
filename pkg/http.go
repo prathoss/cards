@@ -131,7 +131,7 @@ type BadRequestError struct {
 }
 
 func (b *BadRequestError) Error() string {
-	return "Request is invalid"
+	return fmt.Sprintf("%v", b.invalidParams)
 }
 
 func (b *BadRequestError) WriteProblem(_ context.Context, w http.ResponseWriter) error {

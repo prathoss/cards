@@ -1,11 +1,17 @@
 package internal
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/prathoss/cards/pkg"
 )
 
@@ -103,14 +109,99 @@ func TestParseCards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, tt.reqURL, nil)
-			cards, errors := parseCards(req)
+			cards, parseErrors := parseCards(req)
 
 			if !slices.Equal(cards, tt.expectedCards) {
 				t.Errorf("Expected cards %v, but got %v", tt.expectedCards, cards)
 			}
-			if !slices.Equal(errors, tt.expectedErrors) {
-				t.Errorf("Expected errors to be %v, but got %v", tt.expectedErrors, errors)
+			if !slices.Equal(parseErrors, tt.expectedErrors) {
+				t.Errorf("Expected errors to be %v, but got %v", tt.expectedErrors, parseErrors)
 			}
 		})
+	}
+}
+
+var _ DeckProcessor = (*DeckProcessorMock)(nil)
+
+type DeckProcessorMock struct {
+	storage map[uuid.UUID]*Deck
+}
+
+func (d *DeckProcessorMock) Create(_ context.Context, cardsCodes []string, shuffled bool) (Deck, error) {
+	deck, err := NewDeck(cardsCodes, shuffled)
+	if err != nil {
+		return Deck{}, err
+	}
+	d.storage[deck.ID] = &deck
+	return deck, nil
+}
+
+func (d *DeckProcessorMock) Get(_ context.Context, deckID uuid.UUID) (Deck, error) {
+	deck, ok := d.storage[deckID]
+	if !ok {
+		return Deck{}, pkg.NewNotFoundError("deck not found")
+	}
+	return *deck, nil
+}
+
+func (d *DeckProcessorMock) DrawCards(ctx context.Context, deckID uuid.UUID, count int) ([]Card, error) {
+	deck, err := d.Get(ctx, deckID)
+	if err != nil {
+		return nil, err
+	}
+
+	cards := deck.Cards[0:count]
+	deck.Cards = deck.Cards[count:]
+	return cards, nil
+}
+
+func TestDeck_Draw_Concurrency(t *testing.T) {
+	s := &Server{
+		config: Config{},
+		deckProcessor: &DeckProcessorMock{
+			storage: map[uuid.UUID]*Deck{},
+		},
+	}
+
+	deck, err := s.deckProcessor.Create(context.Background(), nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	concurrencyDegree := 200
+	wg := &sync.WaitGroup{}
+
+	cardsReceived := atomic.Int32{}
+	expectedError := newNotEnoughCardsError()
+	nonExpectedErrorsCount := atomic.Int32{}
+	for range concurrencyDegree {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			recorder := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/api/v1/deck/%s/draw?count=1", deck.ID.String()), nil)
+			req.SetPathValue("id", deck.ID.String())
+
+			response, err := s.drawCards(recorder, req)
+
+			if err != nil {
+				var badRequestError *pkg.BadRequestError
+				if !errors.As(err, &badRequestError) && badRequestError.Error() != expectedError.Error() {
+					nonExpectedErrorsCount.Add(1)
+				}
+				return
+			}
+			cardsResponse := response.(CardsResponse)
+			cardsReceived.Add(int32(len(cardsResponse.Cards)))
+		}()
+	}
+	wg.Wait()
+
+	if nonExpectedErrorsCount.Load() > 0 {
+		t.Fatalf("handler returns unexpected errors")
+	}
+
+	if cardsReceived.Load() > int32(len(deck.Cards)) {
+		t.Fatalf("drew more cards than possible")
 	}
 }
