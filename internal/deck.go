@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/prathoss/cards/pkg"
 )
 
 const (
@@ -148,18 +149,25 @@ type OpenDeckResponse struct {
 }
 
 func NewOpenDeckResponse(deck Deck) OpenDeckResponse {
-	cards := make([]CardResponse, 0, len(deck.Cards))
-	for _, card := range deck.Cards {
-		cards = append(cards, NewCardResponse(card))
-	}
+	cardsResponse := NewCardsResponse(deck.Cards)
 	return OpenDeckResponse{
 		CreateDeckResponse: NewCreateDeckResponse(deck),
-		Cards:              cards,
+		Cards:              cardsResponse.Cards,
 	}
 }
 
 type CardsResponse struct {
 	Cards []CardResponse `json:"cards"`
+}
+
+func NewCardsResponse(cards []Card) CardsResponse {
+	cardsResponse := make([]CardResponse, 0, len(cards))
+	for _, card := range cards {
+		cardsResponse = append(cardsResponse, NewCardResponse(card))
+	}
+	return CardsResponse{
+		Cards: cardsResponse,
+	}
 }
 
 type CardResponse struct {
@@ -178,4 +186,11 @@ type DeckProcessor interface {
 	Create(ctx context.Context, cardsCodes []string, shuffled bool) (Deck, error)
 	Get(ctx context.Context, deckID uuid.UUID) (Deck, error)
 	DrawCards(ctx context.Context, deckID uuid.UUID, count int) ([]Card, error)
+}
+
+func newNotEnoughCardsError() *pkg.BadRequestError {
+	return pkg.NewBadRequestError(pkg.InvalidParam{
+		Name:   "deck",
+		Reason: "deck does not have enough cards",
+	})
 }

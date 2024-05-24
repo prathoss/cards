@@ -13,17 +13,80 @@ import (
 )
 
 type Server struct {
-	config Config
+	config        Config
+	deckProcessor DeckProcessor
 }
 
 func NewServer(config Config) *Server {
 	return &Server{
-		config: config,
+		config:        config,
+		deckProcessor: nil,
 	}
+}
+
+func (s *Server) createDeck(_ http.ResponseWriter, r *http.Request) (any, error) {
+	var invalidParams []pkg.InvalidParam
+
+	shuffled, shuffledErrors := parseShuffled(r)
+	invalidParams = append(invalidParams, shuffledErrors...)
+
+	cards, cardsErrors := parseCards(r)
+	invalidParams = append(invalidParams, cardsErrors...)
+
+	if len(invalidParams) > 0 {
+		return nil, pkg.NewBadRequestError(invalidParams...)
+	}
+
+	deck, err := s.deckProcessor.Create(r.Context(), cards, shuffled)
+	if err != nil {
+		return nil, err
+	}
+	return NewCreateDeckResponse(deck), nil
+}
+
+func (s *Server) openDeck(_ http.ResponseWriter, r *http.Request) (any, error) {
+	var invalidParams []pkg.InvalidParam
+
+	id, idErrors := parseID(r)
+	invalidParams = append(invalidParams, idErrors...)
+
+	if len(invalidParams) > 0 {
+		return nil, pkg.NewBadRequestError(invalidParams...)
+	}
+
+	deck, err := s.deckProcessor.Get(r.Context(), id)
+	if err != nil {
+		return nil, err
+	}
+	return NewOpenDeckResponse(deck), nil
+}
+
+func (s *Server) drawCards(_ http.ResponseWriter, r *http.Request) (any, error) {
+	var invalidParams []pkg.InvalidParam
+
+	id, idErrors := parseID(r)
+	invalidParams = append(invalidParams, idErrors...)
+
+	count, countErrors := parseCount(r)
+	invalidParams = append(invalidParams, countErrors...)
+
+	if len(invalidParams) > 0 {
+		return nil, pkg.NewBadRequestError(invalidParams...)
+	}
+
+	cards, err := s.deckProcessor.DrawCards(r.Context(), id, count)
+	if err != nil {
+		return nil, err
+	}
+	return NewCardsResponse(cards), nil
 }
 
 func (s *Server) Run() {
 	mux := http.NewServeMux()
+
+	mux.Handle("POST /api/v1/deck", pkg.HttpHandler(s.createDeck))
+	mux.Handle("POST /api/v1/deck/{id}/open", pkg.HttpHandler(s.openDeck))
+	mux.Handle("POST /api/v1/deck/{id}/draw", pkg.HttpHandler(s.drawCards))
 
 	server := &http.Server{
 		Addr:              s.config.Address,
