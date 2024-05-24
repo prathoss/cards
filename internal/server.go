@@ -64,15 +64,13 @@ func parseID(r *http.Request) (uuid.UUID, []pkg.InvalidParam) {
 func parseShuffled(r *http.Request) (bool, []pkg.InvalidParam) {
 	shuffledParamName := "shuffled"
 	var invalidParams []pkg.InvalidParam
-	shuffled := false
 
 	if !r.URL.Query().Has(shuffledParamName) {
-		return shuffled, invalidParams
+		return false, invalidParams
 	}
 
 	shuffledStr := r.URL.Query().Get(shuffledParamName)
-	var err error
-	shuffled, err = strconv.ParseBool(shuffledStr)
+	shuffled, err := strconv.ParseBool(shuffledStr)
 	if err != nil {
 		invalidParams = append(invalidParams, pkg.InvalidParam{
 			Name:   shuffledParamName,
