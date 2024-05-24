@@ -166,6 +166,7 @@ func (i *InternalServerError) Error() string {
 }
 
 func (i *InternalServerError) WriteProblem(ctx context.Context, w http.ResponseWriter) error {
+	slog.ErrorContext(ctx, "internal server error", Err(i.innerError))
 	w.WriteHeader(http.StatusInternalServerError)
 	w.Header().Set("Content-Type", "application/problem+json")
 	detail := ProblemDetail{
