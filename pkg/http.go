@@ -19,6 +19,7 @@ func ServeWithShutdown(s *http.Server) error {
 	defer cFunc()
 
 	errChan := make(chan error, 1)
+	defer close(errChan)
 
 	go func() {
 		slog.Info("Server is running", "address", s.Addr)
