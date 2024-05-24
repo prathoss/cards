@@ -3,6 +3,8 @@ package internal
 import (
 	"slices"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 func TestCard_Code(t *testing.T) {
@@ -123,6 +125,77 @@ func TestShuffleCards(t *testing.T) {
 				if !slices.Equal(deck.Cards, copyBeforeShuffle) {
 					t.Errorf("Deck of cards with zero or one card should stay the same after shuffle.")
 				}
+			}
+		})
+	}
+}
+
+func TestDrawCards(t *testing.T) {
+	tests := []struct {
+		name    string
+		deck    Deck
+		count   int
+		wantErr bool
+	}{
+		{
+			name: "Draw some cards",
+			deck: Deck{
+				ID: uuid.New(),
+				Cards: []Card{
+					{},
+					{},
+					{},
+				},
+			},
+			count:   2,
+			wantErr: false,
+		},
+		{
+			name: "Draw all cards",
+			deck: Deck{
+				ID: uuid.New(),
+				Cards: []Card{
+					{},
+					{},
+					{},
+				},
+			},
+			count:   3,
+			wantErr: false,
+		},
+		{
+			name: "Try to draw more cards than available",
+			deck: Deck{
+				ID: uuid.New(),
+				Cards: []Card{
+					{},
+					{},
+				},
+			},
+			count:   3,
+			wantErr: true,
+		},
+		{
+			name: "Try to draw cards from empty deck",
+			deck: Deck{
+				ID: uuid.New(),
+			},
+			count:   1,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deckInitCardCount := len(tt.deck.Cards)
+			_, err := tt.deck.DrawCards(tt.count)
+
+			if tt.wantErr && err == nil {
+				t.Errorf("Deck.DrawCards() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && len(tt.deck.Cards) != deckInitCardCount-tt.count {
+				t.Errorf("Unexpected card count after draw, got: %d, want: %d", len(tt.deck.Cards), len(tt.deck.Cards)-tt.count)
 			}
 		})
 	}

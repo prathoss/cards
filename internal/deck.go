@@ -85,6 +85,16 @@ func (d *Deck) ShuffleCards() error {
 	return nil
 }
 
+func (d *Deck) DrawCards(count int) ([]Card, error) {
+	if count > len(d.Cards) {
+		return nil, newNotEnoughCardsError()
+	}
+
+	cards := d.Cards[0:count]
+	d.Cards = d.Cards[count:]
+	return cards, nil
+}
+
 // generateCards generates a slice of cards based on the provided codes.
 // If the codes slice is empty, it generates all possible combinations of cards.
 // It uses generateAllCardsCombinationsByCode to get the mapping of codes to cards.

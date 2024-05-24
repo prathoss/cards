@@ -150,8 +150,11 @@ func (d *DeckProcessorMock) DrawCards(ctx context.Context, deckID uuid.UUID, cou
 		return nil, err
 	}
 
-	cards := deck.Cards[0:count]
-	deck.Cards = deck.Cards[count:]
+	cards, err := deck.DrawCards(count)
+	if err != nil {
+		return nil, err
+	}
+	d.storage[deckID] = &deck
 	return cards, nil
 }
 
