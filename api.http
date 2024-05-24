@@ -10,5 +10,6 @@ POST {{uri}}/api/v1/deck/{{id}}/open
 ### Draw from deck
 < {%
     request.variables.set("id", "")
+    request.variables.set("count", "")
 %}
-POST {{uri}}/api/v1/deck/{{id}}/draw
+POST {{uri}}/api/v1/deck/{{id}}/draw?count={{count}}

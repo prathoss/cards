@@ -7,3 +7,13 @@ services:
       dockerfile: Dockerfile
     ports:
       - '8080:8080'
+    environment:
+      CARDS_MONGO_CONN_STR: mongodb://admin:localDB123@mongo
+
+  mongo:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: localDB123
+    ports:
+      - '27017:27017'

@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prathoss/cards/pkg"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Server struct {
@@ -17,11 +20,20 @@ type Server struct {
 	deckProcessor DeckProcessor
 }
 
-func NewServer(config Config) *Server {
+func NewServer(config Config) (*Server, error) {
+	ctx, cFunc := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cFunc()
+
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	opts := options.Client().ApplyURI(config.MongoConnection).SetServerAPIOptions(serverAPI)
+	client, err := mongo.Connect(ctx, opts)
+	if err != nil {
+		return nil, err
+	}
 	return &Server{
 		config:        config,
-		deckProcessor: nil,
-	}
+		deckProcessor: NewDeckRepository(client),
+	}, nil
 }
 
 func (s *Server) createDeck(_ http.ResponseWriter, r *http.Request) (any, error) {
@@ -90,7 +102,7 @@ func (s *Server) Run() {
 
 	server := &http.Server{
 		Addr:              s.config.Address,
-		Handler:           mux,
+		Handler:           pkg.CorrelationHandler(pkg.LoggingHandler(mux)),
 		ReadTimeout:       5 * time.Second,
 		ReadHeaderTimeout: 100 * time.Millisecond,
 		WriteTimeout:      5 * time.Second,
