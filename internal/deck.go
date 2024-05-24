@@ -2,8 +2,9 @@ package internal
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
-	"math/rand"
+	"math/big"
 	"strconv"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ type Deck struct {
 	Cards    []Card    `json:"cards"`
 }
 
-func NewDeck(cardCodes []string, shuffled bool) Deck {
+func NewDeck(cardCodes []string, shuffled bool) (Deck, error) {
 	cards := generateCards(cardCodes)
 	deck := Deck{
 		ID:       uuid.New(),
@@ -63,17 +64,24 @@ func NewDeck(cardCodes []string, shuffled bool) Deck {
 		Cards:    cards,
 	}
 	if shuffled {
-		deck.ShuffleCards()
+		if err := deck.ShuffleCards(); err != nil {
+			return deck, err
+		}
 	}
-	return deck
+	return deck, nil
 }
 
 // ShuffleCards shuffles cards in deck (in place) using Fisher-Yates' algorithm
-func (d *Deck) ShuffleCards() {
+func (d *Deck) ShuffleCards() error {
 	for i := len(d.Cards) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+		jBig, err := rand.Int(rand.Reader, big.NewInt(int64(i)+1))
+		if err != nil {
+			return err
+		}
+		j := int(jBig.Int64())
 		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	}
+	return nil
 }
 
 // generateCards generates a slice of cards based on the provided codes.

@@ -111,7 +111,9 @@ func TestShuffleCards(t *testing.T) {
 			deck := &Deck{Cards: tt.cards}
 			copyBeforeShuffle := make([]Card, len(tt.cards))
 			copy(copyBeforeShuffle, tt.cards)
-			deck.ShuffleCards()
+			if err := deck.ShuffleCards(); err != nil {
+				t.Fatalf("could not shuffle deck %s", err.Error())
+			}
 
 			if len(tt.cards) > 2 {
 				if slices.Equal(deck.Cards, copyBeforeShuffle) {
