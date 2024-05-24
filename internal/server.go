@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,8 +17,9 @@ import (
 )
 
 type Server struct {
-	config        Config
-	deckProcessor DeckProcessor
+	config            Config
+	deckProcessor     DeckProcessor
+	drawingCardsMutex sync.Mutex
 }
 
 func NewServer(config Config) (*Server, error) {
@@ -31,8 +33,9 @@ func NewServer(config Config) (*Server, error) {
 		return nil, err
 	}
 	return &Server{
-		config:        config,
-		deckProcessor: NewDeckRepository(client),
+		config:            config,
+		deckProcessor:     NewDeckRepository(client),
+		drawingCardsMutex: sync.Mutex{},
 	}, nil
 }
 
@@ -85,6 +88,9 @@ func (s *Server) drawCards(_ http.ResponseWriter, r *http.Request) (any, error) 
 	if len(invalidParams) > 0 {
 		return nil, pkg.NewBadRequestError(invalidParams...)
 	}
+
+	s.drawingCardsMutex.Lock()
+	defer s.drawingCardsMutex.Unlock()
 
 	cards, err := s.deckProcessor.DrawCards(r.Context(), id, count)
 	if err != nil {
